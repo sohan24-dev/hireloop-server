@@ -38,11 +38,16 @@ async function run() {
 
         const database = client.db("mailestion_10");
         const jobCollection = database.collection("jobs");
+        const userCollection = database.collection("user");
         const companyCollection = database.collection("companies");
+        const applicationCollection = database.collection("applications");
+        const planCollection = database.collection("plans");
+        const subscriptionCollection = database.collection("subscriptions");
+
 
         app.get('/api/users', async (req, res) => {
 
-            const cursor = usersCollection.find().skip(6);
+            const cursor = userCollection.find().skip(6);
             const result = await cursor.toArray();
             res.send(result);
         })
@@ -91,15 +96,44 @@ async function run() {
             const result = await jobCollection.insertOne(newJob);
             res.send(result);
         });
+        // application related api
+        app.get("/api/applications", async (req, res) => {
+            const query = {};
+            if (req.query.applicantId) {
+                query.applicantId = req.query.applicantId;
+            }
+            if (req.query.jobId) {
+                query.jobId = req.query.jobId;
+            }
+            const result = await applicationCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        app.post("/api/applications", async (req, res) => {
+            const application = req.body;
+
+            const newApplication = {
+                ...application,
+                createdAt: new Date(),
+            };
+
+            const result = await applicationCollection.insertOne(newApplication);
+            res.send(result);
+        });
 
         // Get companies
         app.get("/api/companies", async (req, res) => {
-            const result = await companyCollection
-                .find()
-                .skip(4)
-                .toArray();
+            const cursor = await companyCollection
+                .find();
+            const result = await cursor.toArray();
+            for (const company of result) {
+                const jobs = await jobCollection.countDocuments({ companyId: company._id.toString() });
+                company.jobCount = jobs;
+            }
+
 
             res.send(result);
+            // console.log(result);
         });
         app.get('/api/my/companies', async (req, res) => {
             const query = {};
@@ -124,7 +158,55 @@ async function run() {
             res.send(result);
         });
 
-        await client.db("admin").command({ ping: 1 });
+        app.patch("/api/companies/:id", async (req, res) => {
+            const id = req.params.id;
+            const updateData = req.body;
+
+            const filter = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    ...updateData,
+                },
+            };
+
+            const result = await companyCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        });
+
+        // plans
+        app.get("/api/plans", async (req, res) => {
+            const query = {};
+            if (req.query.plan_id) {
+                query.id = req.query.plan_id;
+            }
+            console.log(query);
+            const plan = await planCollection.findOne(query);
+            // console.log(plan);
+            res.send(plan || {});
+        })
+        // subscription related api
+        app.post("/api/subscriptions", async (req, res) => {
+            const subscription = req.body;
+
+            console.log(subscription);
+            const newSubscription = {
+                ...subscription,
+                createdAt: new Date(),
+            };
+
+            const result = await subscriptionCollection.insertOne(newSubscription);
+            const filter = { email: subscription.email };
+            const updateDoc = {
+                $set: {
+                    plan: subscription.planId,
+                },
+            };
+            const data = await userCollection.updateOne(filter, updateDoc);
+            console.log(data);
+            res.send(result);
+        });
+
+        // await client.db("admin").command({ ping: 1 });
 
         console.log("✅ MongoDB Connected");
 
