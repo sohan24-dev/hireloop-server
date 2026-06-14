@@ -21,23 +21,7 @@ app.get("/", (req, res) => {
     res.send("Hello World!");
 });
 
-const verifyToken = (req, res, next) => {
-    console.log(req.headers);
-    const authHeader = req.headers.authorization;
 
-    if (!authHeader) {
-        return res.status(401).send({
-            success: false,
-            message: "Authorization header is missing",
-        });
-    }
-
-    const token = authHeader.split(" ")[1]; // Assuming Bearer token
-
-    // Here you would typically verify the token (e.g., using JWT)
-    // For now, we'll just proceed to the next middleware
-    next();
-};
 
 const uri = process.env.MONGODB_URL;
 
@@ -60,7 +44,43 @@ async function run() {
         const applicationCollection = database.collection("applications");
         const planCollection = database.collection("plans");
         const subscriptionCollection = database.collection("subscriptions");
+        const sessionCollection = database.collection("session");
 
+
+        // verify token middleware
+        const verifyToken = async (req, res, next) => {
+            console.log(req.headers);
+            const authHeader = req.headers.authorization;
+
+            if (!authHeader) {
+                return res.status(401).send({
+                    success: false,
+                    message: "Authorization header is missing",
+                });
+            }
+
+            const token = authHeader.split(" ")[1];
+
+            const query = { token: token };
+            const session = await sessionCollection.findOne(query);
+            const userId = session?.userId;
+
+            const userQuery = { _id: userId };
+            const user = await userCollection.findOne(userQuery);
+            //    set data in the req object
+            req.user = user;
+            next();
+        };
+
+        const verifySeeker = (req, res, next) => {
+            if (req.user?.role !== "seeker") {
+                return res.status(403).send({
+                    success: false,
+                    message: "Access denied. Only job seekers can access this resource.",
+                });
+            }
+            next();
+        };
 
         app.get('/api/users', async (req, res) => {
 
@@ -114,7 +134,7 @@ async function run() {
             res.send(result);
         });
         // application related api
-        app.get("/api/applications", async (req, res) => {
+        app.get("/api/applications", verifyToken, async (req, res) => {
             const query = {};
             if (req.query.applicantId) {
                 query.applicantId = req.query.applicantId;
