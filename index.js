@@ -21,6 +21,23 @@ app.get("/", (req, res) => {
     res.send("Hello World!");
 });
 
+const verifyToken = (req, res, next) => {
+    console.log(req.headers);
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+        return res.status(401).send({
+            success: false,
+            message: "Authorization header is missing",
+        });
+    }
+
+    const token = authHeader.split(" ")[1]; // Assuming Bearer token
+
+    // Here you would typically verify the token (e.g., using JWT)
+    // For now, we'll just proceed to the next middleware
+    next();
+};
 
 const uri = process.env.MONGODB_URL;
 
@@ -122,7 +139,7 @@ async function run() {
         });
 
         // Get companies
-        app.get("/api/companies", async (req, res) => {
+        app.get("/api/companies", verifyToken, async (req, res) => {
             const cursor = await companyCollection
                 .find();
             const result = await cursor.toArray();
@@ -158,7 +175,7 @@ async function run() {
             res.send(result);
         });
 
-        app.patch("/api/companies/:id", async (req, res) => {
+        app.patch("/api/companies/:id", verifyToken, async (req, res) => {
             const id = req.params.id;
             const updateData = req.body;
 
