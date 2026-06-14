@@ -82,6 +82,26 @@ async function run() {
             next();
         };
 
+        const verifyRecruiter = (req, res, next) => {
+            if (req.user?.role !== "recruiter") {
+                return res.status(403).send({
+                    success: false,
+                    message: "Access denied. Only recruiters can access this resource.",
+                });
+            }
+            next();
+        };
+
+        const verifyAdmin = (req, res, next) => {
+            if (req.user?.role !== "admin") {
+                return res.status(403).send({
+                    success: false,
+                    message: "Access denied. Only administrators can access this resource.",
+                });
+            }
+            next();
+        };
+
         app.get('/api/users', async (req, res) => {
 
             const cursor = userCollection.find().skip(6);
@@ -134,10 +154,18 @@ async function run() {
             res.send(result);
         });
         // application related api
-        app.get("/api/applications", verifyToken, async (req, res) => {
+        app.get("/api/applications", verifyToken, verifySeeker, async (req, res) => {
             const query = {};
             if (req.query.applicantId) {
                 query.applicantId = req.query.applicantId;
+
+
+                if (query.applicantId !== req.user._id.toString()) {
+                    return res.status(403).send({
+                        success: false,
+                        message: "Access denied. You can only view your own applications.",
+                    });
+                }
             }
             if (req.query.jobId) {
                 query.jobId = req.query.jobId;
@@ -195,7 +223,7 @@ async function run() {
             res.send(result);
         });
 
-        app.patch("/api/companies/:id", verifyToken, async (req, res) => {
+        app.patch("/api/companies/:id", verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const updateData = req.body;
 
