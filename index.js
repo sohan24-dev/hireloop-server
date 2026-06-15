@@ -102,15 +102,25 @@ async function run() {
             next();
         };
 
-        app.get('/api/users', async (req, res) => {
-
-            const cursor = userCollection.find().skip(6);
-            const result = await cursor.toArray();
-            res.send(result);
-        })
         app.get("/api/jobs", async (req, res) => {
             const query = {};
 
+            if (req.query.jobType) {
+                query.jobType = req.query.jobType
+            }
+
+            if (req.query.search) {
+                query.$or = [
+                    { jobTitle: { $regex: req.query.search, $options: 'i' } },
+                    { companyName: { $regex: req.query.search, $options: 'i' } }
+                ]
+            }
+            if (req.query.jobCategory) {
+                query.jobCategory = req.query.jobCategory
+            }
+            if (req.query.isRemote) {
+                query.isRemote = req.query.isRemote
+            }
             if (req.query.companyId) {
                 query.companyId = req.query.companyId;
             }
