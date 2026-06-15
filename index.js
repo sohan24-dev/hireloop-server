@@ -266,7 +266,6 @@ async function run() {
             }
             console.log(query);
             const plan = await planCollection.findOne(query);
-            // console.log(plan);
             res.send(plan || {});
         })
         // subscription related api
