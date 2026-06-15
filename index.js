@@ -128,6 +128,16 @@ async function run() {
             if (req.query.status) {
                 query.status = req.query.status;
             }
+            if (req.query.page) {
+                const page = req.query.page;
+                const perPage = req.query.perPage || 12;
+                const skipItems = (page - 1) * perPage
+
+                const total = await jobCollection.countDocuments(query);
+                const cursor = jobCollection.find(query).skip(skipItems).limit(perPage);
+                const jobs = await cursor.toArray();
+                return res.send({ total, jobs });
+            }
 
             const result = await jobCollection.find(query).toArray();
             res.send(result);
